@@ -189,15 +189,29 @@
   //          No accumulator is given so the first element is used.
   _.reduce = function(collection, iterator, accumulator) {
   	
-  	let startPoint = 0;
-  	if(accumulator === undefined) {
-  		accumulator = collection[0];
-  		startPoint = 1;
-  	}
+  	if(!Array.isArray(collection)) { //Array
+	  	let startPoint = 0;
+	  	if(accumulator === undefined) {
+	  		accumulator = collection[0];
+	  		startPoint = 1;
+	  	}
 
-  	for(let i = startPoint; i < collection.length; i++) {
-  		accumulator = iterator(accumulator, collection[i]);
-  	}
+	  	for(let i = startPoint; i < collection.length; i++) {
+	  		accumulator = iterator(accumulator, collection[i]);
+	  	}
+
+  	} else {   //Object
+  		let startPoint = 0;
+      for(let currKey in collection) {
+        if(accumulator === undefined && startPoint === 0) { //when accumulator is undefined we use first element
+          accumulator = collection[currKey];
+          startPoint = 999; // One time only  
+        } else {
+          accumulator = iterator(accumulator, collection[currKey]);
+        }
+      }
+
+  	} //END if(!Array.isArray(collection))
 
   	return accumulator;
 
@@ -219,12 +233,51 @@
   // Determine whether all of the elements match a truth test.
   _.every = function(collection, iterator) {
     // TIP: Try re-using reduce() here.
+    let returnVal;  //Variable used to get return value of iterator(elem)
+
+	  let ans =  _.reduce(collection, function(inEvery, elem){
+				    	if(!inEvery) {
+				    		return false;  //once false it will always be false
+				    	} else {
+				    		
+				    		if(iterator === undefined) {
+				    			returnVal = elem;   //in case of iterator is undefined we use elem
+				    		} else {
+				    			returnVal = iterator(elem);
+				    		}
+				    		
+				    		if(returnVal) {
+				    			return true;
+				    		} else {
+				    			return false;
+				    		}
+
+				    	}
+				    }, true);
+
+	  return ans;
+
   };
 
   // Determine whether any of the elements pass a truth test. If no iterator is
   // provided, provide a default one
   _.some = function(collection, iterator) {
     // TIP: There's a very clever way to re-use every() here.
+    if(iterator === undefined) {
+    	iterator = _.identity;   // if no iterator is provided, provide a default one
+    }
+
+    var returnVal = false; //Default Val
+
+    // make each element of collection array [elem] and check ._every
+    _.each(collection, function(elem) {   
+    	if(_.every([elem], iterator) === true && returnVal === false) { 
+    		returnVal = true;
+    	}
+    });
+
+    return(returnVal);
+
   };
 
 
@@ -247,11 +300,33 @@
   //     bla: "even more stuff"
   //   }); // obj1 now contains key1, key2, key3 and bla
   _.extend = function(obj) {
+  	
+  	for(let i = 1; i < arguments.length; i++) {
+  		
+  		for(let currKey in arguments[i]) {
+  			obj[currKey] = arguments[i][currKey];
+  		}
+
+  	} // END for i	
+
+  	return obj;
   };
 
   // Like extend, but doesn't ever overwrite a key that already
   // exists in obj
   _.defaults = function(obj) {
+
+  	for(let i = 1; i < arguments.length; i++) {
+  		
+  		for(let currKey in arguments[i]) {
+  			if(obj[currKey] === undefined) {
+  				obj[currKey] = arguments[i][currKey];
+  			}
+  		}
+
+  	} // END for i	
+
+  	return obj;
   };
 
 
@@ -304,6 +379,18 @@
   // parameter. For example _.delay(someFunction, 500, 'a', 'b') will
   // call someFunction('a', 'b') after 500ms
   _.delay = function(func, wait) {
+
+  	let agruArray = [];
+
+  	//Make array of arguments of index 2+ 
+  	for(let i = 2; i < arguments.length; i++) {
+  		agruArray.push(arguments[i]);
+  	}
+
+  	setTimeout(function() {
+  		func.apply(this, agruArray);
+  	}, wait);
+
   };
 
 
@@ -318,6 +405,15 @@
   // input array. For a tip on how to make a copy of an array, see:
   // http://mdn.io/Array.prototype.slice
   _.shuffle = function(array) {
+  	let arrayCopy = array.slice();
+  	let randomArray = [];
+  	let randomIndex;
+  	while(arrayCopy.length > 0) {
+  		randomIndex = Math.floor(Math.random() * arrayCopy.length);
+  		randomArray.push(arrayCopy[randomIndex]);
+  		arrayCopy.splice(randomIndex,1);
+  	}
+  	return randomArray;
   };
 
 
@@ -332,6 +428,15 @@
   // Calls the method named by functionOrKey on each value in the list.
   // Note: You will need to learn a bit about .apply to complete this.
   _.invoke = function(collection, functionOrKey, args) {
+    let result = [];  
+    for(let i = 0; i < collection.length; i++) {
+      if(typeof(functionOrKey) === 'string') {
+        result.push(collection[i][functionOrKey](args));
+      } else {
+        result.push(functionOrKey.call(collection[i], args));
+      }
+    }
+    return result;
   };
 
   // Sort the object's values by a criterion produced by an iterator.
@@ -339,6 +444,32 @@
   // of that string. For example, _.sortBy(people, 'name') should sort
   // an array of people by their name.
   _.sortBy = function(collection, iterator) {
+    const sortOrder = function(a,b) {
+      if (a[iterator] < b[iterator]) {
+        return -1;
+      }
+      if (a[iterator] > b[iterator]) {
+        return 1;
+      }
+      return 0;
+    }
+
+    const sortOrderFun = function(a,b) {
+      if (iterator(a) < iterator(b)) {
+        return -1;
+      }
+      if (iterator(a) > iterator(b)) {
+        return 1;
+      }
+      return 0;
+    }
+
+    if(typeof(iterator) === 'string') {
+      collection.sort(sortOrder);  
+    } else {
+      collection.sort(sortOrderFun);
+    }
+    return(collection);
   };
 
   // Zip together two or more arrays with elements of the same index
@@ -347,6 +478,26 @@
   // Example:
   // _.zip(['a','b','c','d'], [1,2,3]) returns [['a',1], ['b',2], ['c',3], ['d',undefined]]
   _.zip = function() {
+    let input = [];
+    let output = [];
+    
+    let maxLength = 0;
+    for(let i = 0; i < arguments.length; i++) {
+      input.push(arguments[i]);
+      if(arguments[i].length > maxLength) {
+        maxLength = arguments[i].length;
+      }
+    }
+
+    for(let i = 0; i < maxLength; i++) {
+      let tempArray = [];
+      for(let j = 0; j < arguments.length; j++) {
+        tempArray.push(arguments[j][i]);
+      }
+      output.push(tempArray);
+    }
+
+    return(output);
   };
 
   // Takes a multidimensional array and converts it to a one-dimensional array.
@@ -354,16 +505,83 @@
   //
   // Hint: Use Array.isArray to check if something is an array
   _.flatten = function(nestedArray, result) {
-  };
+    let clonedInput = nestedArray.slice();
+    let isFlat = false;
+    let output = [];
+
+    while(isFlat === false) {
+      isFlat = true;
+      output = [];
+      
+      for(let i = 0; i < clonedInput.length; i++) {
+        let firstElem = clonedInput[i];
+
+        if(Array.isArray(firstElem)) {
+          isFlat = false;
+          for(let j = 0; j < firstElem.length; j++) {
+            output.push(firstElem[j]);
+          }
+        } else {
+          output.push(firstElem);
+        }
+
+      }
+
+      clonedInput = output.slice();
+    } //END while
+    return(output);
+  }
 
   // Takes an arbitrary number of arrays and produces an array that contains
   // every item shared between all the passed-in arrays.
   _.intersection = function() {
+    let input = [];
+    let output = [];
+
+    for(let i = 0; i < arguments.length; i++) {
+      input.push(arguments[i]);
+    }
+
+    for(let i = 0; i < input[0].length; i++) {
+      let contains = true;
+      for(let j = 1; j < input.length; j++) {
+        if(!(input[j].includes(input[0][i]))) {
+          contains = false;
+          break;
+        } 
+      }
+      if(contains) {
+        output.push(input[0][i]);
+      }
+    }
+
+    return output;
   };
 
   // Take the difference between one array and a number of other arrays.
   // Only the elements present in just the first array will remain.
   _.difference = function(array) {
+    let input = [];
+    let output = [];
+
+    for(let i = 0; i < arguments.length; i++) {
+      input.push(arguments[i]);
+    }
+
+    for(let i = 0; i < input[0].length; i++) {
+      let contains = false;
+      for(let j = 1; j < input.length; j++) {
+        if((input[j].includes(input[0][i]))) {
+          contains = true;
+          break;
+        } 
+      }
+      if(!contains) {
+        output.push(input[0][i]);
+      }
+    }
+
+    return output;
   };
 
   // Returns a function, that, when invoked, will only be triggered at most once
